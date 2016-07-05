@@ -1,9 +1,23 @@
+
 body {
 	background-color: rgb(32,32,32);
-	text-align: center;
 	font-size: 1em;
 	color: rgb(128,128,128);
 	font-family: "Arial", Arial, sans-serif;
+	cursor: default;
+	-WEBKIT-USER-SELECT: NONE; /* SAFARI, CHROME */
+    -KHTML-USER-SELECT: NONE; /* KONQUEROR */
+    -MOZ-USER-SELECT: NONE; /* FIREFOX */
+    -MS-USER-SELECT: NONE; /* IE */
+    USER-SELECT: NONE; /* CSS3 */
+	image-rendering: -moz-crisp-edges;
+	image-rendering: -moz-crisp-edges;
+	image-rendering: -o-crisp-edges;
+	image-rendering: pixelated;
+	-ms-interpolation-mode: nearest-neighbor;
+}
+p {
+	margin: 8px;
 }
 p.title {
 	margin: 8px;
@@ -12,9 +26,99 @@ p.title {
 }
 p.heading {
 	margin: 8px;
-	font-size: 2em;
+	font-size: 1.75em;
 	color: rgb(32,128,32);
 }
-p {
-	margin: 8px;
+#blockSelection {
+	display: inline-block;
+	background-image: url("textures/blockSheet.png");
+	background-size: cover;
+	border-collapse: collapse;
+	border-width: 1px;
+	border-style: solid;
 }
+#blockSelection td {
+	width: 32px;
+	height: 32px;
+	border-width: 1px;
+	border-style: solid;
+	display: inline-block;
+}
+.selection:hover{
+	background-color: rgba(255,255,255,0.1);
+	border-color: black;
+}
+.selection:active {
+	background-color: rgba(32,32,255,0.25);
+	border-color: blue;
+}
+.selected {
+	background-color: rgba(32,32,255,0.25);
+	border-color: blue;
+}
+.group {
+	height: 20%;
+	vertical-align: top;
+	display: inline-block;
+	background-color: rgb(0,0,0);
+	border-radius: 16px;
+	padding: 8px;
+}
+#fps {
+	position:absolute;
+	z-index: 1;
+}
+#canvas {
+	position: absolute;
+	border-radius: 20px;
+}
+#blockGroup {
+	overflow: scroll;
+}
+#toolBar {
+	background-color: rgb(64,64,64);
+	margin-top: 8px;
+	margin-bottom: 4px;
+	padding: 4px;
+	border-radius: 20px;
+	list-style: none;
+}
+.tool {
+	width: 32px;
+	height: 32px;
+}
+.tool:hover {
+	background-color: rgba(255,255,255,0.5);
+}
+.button {
+	font-size: 2em;
+	transition-duration: 0.5s; /* delays for 1 second */
+	cursor: default;
+	
+	display: inline-block;
+	vertical-align: top;
+	width: auto;
+	height: auto;
+	
+	border: 8px;
+	border-style: outset;
+	border-radius: 4px;
+	
+	padding: 4px;
+	margin-left: 4px;
+	margin-right: 4px;
+}
+.button:hover{
+	-webkit-filter: brightness(1.5);
+	filter: brightness(1.5);
+}
+.button:active {
+	-webkit-filter: brightness(0.5);
+	filter: brightness(0.5);
+}
+.button, a, a:visited, a:hover, a:active {
+	background-color: rgb(192,192,192);
+	text-decoration: none;
+	color: black;
+}
+

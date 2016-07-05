@@ -1,14 +1,37 @@
 <html>
     <head>
-        <title>Template</title>   
+        <title>Voxel Game Creator</title>   
+		<script type="text/javascript" src="levels/game1.json"></script>
         <script type="text/javascript" src="script.js"></script>
 		<link rel="stylesheet" type="text/css" href="style.css"></link>
     </head>
 	<body id = "body" onload = "initialize()">
-		<p class = "title">Title</p>
-		<p class = "heading">Heading</p>
-		<p>Paragraph</p>
-		
-		<canvas id="canvas"></canvas>
+		<ul id = "toolBar">
+			<li class = "group">
+				<p class = "heading">Visibility</p>
+				<input id = "foreground" type = "checkbox" checked = "checked">Foreground</input>
+				<input id = "background" type = "checkbox" checked = "checked">Background</input>
+				<input id = "collision" type = "checkbox">Collision</input>
+				<p class = "heading">Working Layer</p>
+				<select id = "workingLayer">
+					<option value = "foreground">Foreground</option>
+					<option value = "background">Background</option>
+					<option value = "collision">Collision</option>
+				</select>
+				<button id = "mode" class = "button">Play</button>
+			</li>
+			<li id = "blockGroup" class = "group">
+				<table id = "blockSelection">
+				</table>
+			</li>
+			<li class = "group">
+				<a id = "export" class = "button">Export</a> <br>
+				<button id = "import" class = "button">Import</button>
+			</li>
+		</ul>
+		<div>
+			<p id = "fps" class = "heading">FPS:</p>
+			<canvas id="canvas"></canvas>
+		</div>
 	</body>
 </html>
