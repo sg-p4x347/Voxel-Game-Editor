@@ -1,32 +1,40 @@
 <html>
     <head>
         <title>Voxel Game Creator</title>   
-		<script type="text/javascript" src="levels/game1.json"></script>
+		<script id = "gameData" type="text/javascript"></script>
         <script type="text/javascript" src="script.js"></script>
 		<link rel="stylesheet" type="text/css" href="style.css"></link>
     </head>
 	<body id = "body" onload = "initialize()">
 		<ul id = "toolBar">
-			<li class = "group">
-				<p class = "heading">Visibility</p>
-				<input id = "foreground" type = "checkbox" checked = "checked">Foreground</input>
-				<input id = "background" type = "checkbox" checked = "checked">Background</input>
-				<input id = "collision" type = "checkbox">Collision</input>
-				<p class = "heading">Working Layer</p>
-				<select id = "workingLayer">
-					<option value = "foreground">Foreground</option>
-					<option value = "background">Background</option>
-					<option value = "collision">Collision</option>
-				</select>
-				<button id = "mode" class = "button">Play</button>
-			</li>
 			<li id = "blockGroup" class = "group">
 				<table id = "blockSelection">
 				</table>
 			</li>
 			<li class = "group">
-				<a id = "export" class = "button">Export</a> <br>
-				<button id = "import" class = "button">Import</button>
+				<p class = "title"> Edit </p>
+				Pen size: <input id = "penSize" type = "range" min = "1" step = "1" max = "30">
+				<p class = "heading">Layers</p>
+				<div id = "entities" class = "button layer">Entities <select id = "entitySelect"></select></div><input id = "entityVis" type = "checkbox" checked = "checked"><br>
+				<div id = "foreground" class = "button layer">Foreground</div><input id = "foregroundVis" type = "checkbox" checked = "checked"><br>
+				<div id = "background" class = "button layer">Background</div><input id = "backgroundVis" type = "checkbox" checked = "checked"><br>
+				<div id = "collision" class = "button layer">Collision</div><input id = "collisionVis" type = "checkbox"><br>
+				<div id = "mode" class = "button">Play</div>
+			</li>
+			<li class = "group">
+				<p class = "title"> Level </p>
+				Load level: <select id = "levelSelect"></select> <br>
+				Name: <input id = "levelName" class = "button" type = "text"></input> <br>
+				Width: <input id ="levelWidth"  class = "button" type = "text"></input> <br>
+				Height: <input id = "levelHeight"  class = "button" type = "text"></input> <br>
+				<div id = "addLevel" class = "button">Add level</div>
+				<div id = "removeLevel" class = "button">Remove level</div>
+			</li>
+			<li class = "group">
+				<p class = "title"> Game </p>
+				Name: <input id = 'gameName'  class = "button" type = "text"></input> <br>
+				<a id = "export" class = "button">Export</a>
+				<div id = "import" class = "button">Import</div>
 			</li>
 		</ul>
 		<div>

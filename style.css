@@ -1,8 +1,8 @@
 
 body {
 	background-color: rgb(32,32,32);
-	font-size: 1em;
-	color: rgb(128,128,128);
+	font-size: 1.25em;
+	color: white;
 	font-family: "Arial", Arial, sans-serif;
 	cursor: default;
 	-WEBKIT-USER-SELECT: NONE; /* SAFARI, CHROME */
@@ -17,32 +17,45 @@ body {
 	-ms-interpolation-mode: nearest-neighbor;
 }
 p {
-	margin: 8px;
+	margin: 4px;
+}
+input {
+	color: white;
+	background-color: black;
+	border: 2px solid white;
+}
+input[type=checkbox]{
+	/* Double-sized Checkboxes */
+  -ms-transform: scale(2); /* IE */
+  -moz-transform: scale(2); /* FF */
+  -webkit-transform: scale(2); /* Safari and Chrome */
+  -o-transform: scale(2); /* Opera */
+}
+input[type=text] {
+	width: 50%;
 }
 p.title {
-	margin: 8px;
-	font-size: 4em;
+	margin: 4px;
+	font-size: 2em;
 	color: rgb(32,192,32);
+	text-align: center;
 }
 p.heading {
-	margin: 8px;
-	font-size: 1.75em;
+	margin: 4px;
+	font-size: 1.25em;
 	color: rgb(32,128,32);
 }
 #blockSelection {
-	display: inline-block;
+	width: 512px;
+	height: 512px;
+	table-layout: fixed;
 	background-image: url("textures/blockSheet.png");
 	background-size: cover;
 	border-collapse: collapse;
-	border-width: 1px;
-	border-style: solid;
+	border: 1px solid white;
 }
-#blockSelection td {
-	width: 32px;
-	height: 32px;
-	border-width: 1px;
-	border-style: solid;
-	display: inline-block;
+.selection {
+	border: 1px solid white;
 }
 .selection:hover{
 	background-color: rgba(255,255,255,0.1);
@@ -53,34 +66,45 @@ p.heading {
 	border-color: blue;
 }
 .selected {
+	border: 1px solid blue;
 	background-color: rgba(32,32,255,0.25);
 	border-color: blue;
 }
 .group {
-	height: 20%;
-	vertical-align: top;
-	display: inline-block;
-	background-color: rgb(0,0,0);
-	border-radius: 16px;
-	padding: 8px;
+	vertical-align:center;
+	text-align: right;
+	display: block;
+	padding: 0px;
+	padding-top: 0px;
+	padding-bottom: 0px;
 }
 #fps {
+	color: black;
+	background-color: grey;
+	text-decoration: bold;
 	position:absolute;
 	z-index: 1;
 }
+#mode {
+}
 #canvas {
 	position: absolute;
-	border-radius: 20px;
+	border: 4px solid black;
 }
 #blockGroup {
 	overflow: scroll;
+	height: 25%;
 }
 #toolBar {
-	background-color: rgb(64,64,64);
-	margin-top: 8px;
-	margin-bottom: 4px;
-	padding: 4px;
-	border-radius: 20px;
+	width: 300px;
+	overflow-y: scroll;
+	overflow-x: hidden;
+	float: right;
+	background-color: rgb(16,16,16);
+	display: inline-block;
+	margin: 0px;
+	padding: 0px;
+	border: 4px solid black;
 	list-style: none;
 }
 .tool {
@@ -91,34 +115,42 @@ p.heading {
 	background-color: rgba(255,255,255,0.5);
 }
 .button {
-	font-size: 2em;
+	font-size: 1em;
 	transition-duration: 0.5s; /* delays for 1 second */
 	cursor: default;
 	
 	display: inline-block;
-	vertical-align: top;
 	width: auto;
 	height: auto;
 	
-	border: 8px;
-	border-style: outset;
+	border: 2px solid white;
 	border-radius: 4px;
 	
 	padding: 4px;
-	margin-left: 4px;
-	margin-right: 4px;
+	margin: 4px;
 }
 .button:hover{
-	-webkit-filter: brightness(1.5);
-	filter: brightness(1.5);
-}
-.button:active {
-	-webkit-filter: brightness(0.5);
-	filter: brightness(0.5);
-}
-.button, a, a:visited, a:hover, a:active {
-	background-color: rgb(192,192,192);
-	text-decoration: none;
+	background-color: white;
 	color: black;
 }
-
+.button:active{
+	background-color: white;
+	border-color: black;
+	color: black;
+}
+.button, a, a:visited, a:hover, a:active {
+	background-color: black;
+	text-decoration: none;
+	color: white;
+}
+.layer {
+	margin: 4px;
+	width: 80%;
+	text-align: center;
+}
+.selectedLayer {
+	background-color: white;
+	border-color: black;
+	color: black;
+}
+	
