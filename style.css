@@ -24,6 +24,11 @@ input {
 	background-color: black;
 	border: 2px solid white;
 }
+select {
+	font-size: 1em;
+	background-color: black;
+	color: white;
+}
 input[type=checkbox]{
 	/* Double-sized Checkboxes */
   -ms-transform: scale(2); /* IE */
@@ -50,6 +55,7 @@ p.heading {
 	height: 512px;
 	table-layout: fixed;
 	background-image: url("textures/blockSheet.png");
+	background-color: white;
 	background-size: cover;
 	border-collapse: collapse;
 	border: 1px solid white;
@@ -83,11 +89,12 @@ p.heading {
 	background-color: grey;
 	text-decoration: bold;
 	position:absolute;
-	z-index: 1;
+	z-index: 2;
 }
 #mode {
 }
 #canvas {
+	z-index: 1;
 	position: absolute;
 	border: 4px solid black;
 }
@@ -96,6 +103,7 @@ p.heading {
 	height: 25%;
 }
 #toolBar {
+	z-index: 0;
 	width: 300px;
 	overflow-y: scroll;
 	overflow-x: hidden;

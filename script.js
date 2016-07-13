@@ -33,23 +33,35 @@ function initialize() {
 function Game () {
 	// data
 	this.name = 'game1';
+	this.version = 0;
 	this.level = 0;
 	this.levels = [];
-	this.camera = new Vector(5,32);
+	this.camera;
+	this.pause = false;
 	this.mode = 'edit';
 	this.primarySelection = null;
-	this.entityGhost = new Image();
+	this.entityGhost;
 	this.layer = 'foreground';
 	this.layers = [];
-	this.entityTypes = ['Player','Checkpoint','Saw','Bullet'];
+	this.entityTypes = ['Player','Exit','Checkpoint','Turret','Saw','Seeker','Gage','Acid','Remove'];
 	// HTML
 	this.fps;
+	this.toolBar;
+	this.entityVis;
+	this.overalyVis;
+	this.foregroundVis;
+	this.backgroundVis;
+	this.collisionVis;
 	this.blockSelection;
 	// animation variables
 	this.animationRequest;
 	this.timeOfLastFrame;
 	this.deltaTime;
+	this.fade = 0;
+	this.fadeIn = false;
+	this.fadeOut = false;
 	// rendering constants
+	this.fullscreen = true;
 	this.view = {
 		width: 16,
 		height: 24
@@ -57,6 +69,7 @@ function Game () {
 	this.viewScale = new Vector()
 	// assets
 	this.blockSheet = new Image();
+	this.overlaySheet = new Image();
 	this.undefined = new Image();
 	this.blockWidth = 8;
 	// slower 1/10 second update
@@ -64,25 +77,44 @@ function Game () {
 	this.Tick = function () {
 		var self = this;
 		// sprite animation
-		self.levels[self.level].entities.forEach(function (entity) {
-			if (entity !== null) {
-				if (entity.Animate) {
-					entity.Animate();
+		if (self.mode === 'play') {
+			self.levels[self.level].entities.forEach(function (entity) {
+				if (entity !== null) {
+					if (typeof entity.Animate == 'function') {
+						entity.Animate();
+					}
+					if (entity.AI) {
+						entity.AI(self.levels[self.level]);
+					}
 				}
-				if (entity.AI) {
-					entity.AI(self.levels[self.level]);
-				}
-			}
-		});
+			});
+		}
+		if (!self.fullscreen) {
+			document.getElementById('mode').innerHTML = self.mode == 'edit' ?  'Play' : 'Edit';
+		}
+		// info
+		self.fps.innerHTML = 'FPS: ' + Math.round(1/self.deltaTime);
 	}
 	// fast 1/60 second update
 	this.Update = function () {
 		var self = this;
-		
+		// fading
+		if (self.fadeIn) {
+			self.fade -= 0.005;
+			if (self.fade < 0) {
+				self.fadeIn = false;
+			}
+		} else if (self.fadeOut) {
+			self.fade += 0.005;
+			if (self.fade > 1) {
+				self.fadeOut = false;
+				self.AdvanceLevel();
+			}
+		}
 		// movement
 		switch (self.mode) {
 			case 'edit':
-				var velocity = self.view.height*0.01;
+				var velocity = self.view.height*0.015;
 				// x
 				if (input.action.right && !input.action.left) {
 					self.camera.x += velocity;
@@ -97,49 +129,27 @@ function Game () {
 				}
 				break;
 			case 'play':
-				if (self.levels[self.level].entities[0] === undefined) {
-					self.mode = 'edit';
-					self.camera = new Vector(0,0);
-					break;
-				}
-				self.camera = self.levels[self.level].entities[0].position;
+				var player = self.levels[self.level].entities[0];
+				self.camera.x = clamp(player.position.x,self.view.width/2-0.5,self.levels[self.level].width-self.view.width/2-0.5);
+				self.camera.y = clamp(player.position.y,self.view.height/2-0.5,self.levels[self.level].height-self.view.height/2-0.5);
 				// update entities
 				self.levels[self.level].entities.forEach(function (entity,index) {
-					if (entity !== null) {
+					if (entity !== null && Math.abs(entity.position.x - player.position.x) < 32 && Math.abs(entity.position.y - player.position.y) < 32) {
 						entity.Update(self.deltaTime,self.levels[self.level]);
 					}
 				});
-				// tick updates
-				if (self.tickCounter > 6) {
-					self.tickCounter = 0;
-				}
-				if (self.tickCounter == 0) {
-					self.Tick();
-				}
-				self.tickCounter++;
+				
 				break;
 		}
-		// info
-		self.fps.innerHTML = 'FPS: ' + Math.round(1/self.deltaTime);
+		
 	}
 	this.Render = function () {
 		var self = this;
 		// clear the screen
 		ctx.fillStyle = 'rgb(192,192,255)';
 		ctx.fillRect(0,0,canvas.width,canvas.height);
-		// the view
+		// Blocks
 		var topLeft = new Vector(self.camera.x - self.view.width/2,self.camera.y - self.view.height/2);
-		/*for (var y = Math.round(topLeft.y) ; y < Math.round(topLeft.y) + self.view.height + 1 ; y++) {		
-			for (var x = Math.round(topLeft.x) ; x < Math.round(topLeft.x) + self.view.width + 1; x++) {
-				var xCoord = Math.round((x - topLeft.x) * self.viewScale.x);
-				var yCoord = Math.round((y - topLeft.y) * self.viewScale.y);
-				if (x >= 0 && x < self.levels[self.level].width && y >= 0 && y < self.levels[self.level].height) {
-					var sy = Math.floor(self.levels[self.level].foreground[x][y].data / (self.blockSheet.width/self.blockWidth));
-					var sx = self.levels[self.level].foreground[x][y].data - (sy * (self.blockSheet.width/self.blockWidth));
-					ctx.drawImage(self.blockSheet, sx * self.blockWidth, sy * self.blockWidth, self.blockWidth, self.blockWidth, Math.floor(xCoord-self.viewScale.x/2), Math.floor(yCoord-self.viewScale.y/2), self.viewScale.x, self.viewScale.y);
-				}
-			}
-		} */
 		var x = Math.round(topLeft.x);
 		var y = Math.round(topLeft.y);
 		for (var yCoord = Math.round((y - topLeft.y) * self.viewScale.y) ; yCoord < canvas.height + self.viewScale.y ; yCoord+= self.viewScale.y) {		
@@ -147,22 +157,29 @@ function Game () {
 				var screenX = Math.floor(xCoord-self.viewScale.x/2);
 				var screenY = Math.floor(yCoord-self.viewScale.y/2);
 				if (x >= 0 && x < self.levels[self.level].width && y >= 0 && y < self.levels[self.level].height) {
-					if (document.getElementById('backgroundVis').checked && self.levels[self.level].GetForeground(x,y)=== 0 && self.levels[self.level].GetBackground(x,y) !== 0) {
+					if (self.backgroundVis.checked && self.levels[self.level].GetForeground(x,y)=== 0 && self.levels[self.level].GetBackground(x,y) !== 0) {
 						// background
-						var sy = Math.floor(self.levels[self.level].GetBackground(x,y) / (self.blockSheet.width/self.blockWidth));
-						var sx = self.levels[self.level].GetBackground(x,y) - (sy * (self.blockSheet.width/self.blockWidth));
+						var parallax = new Vector (x,y);
+						var sy = Math.floor(self.levels[self.level].GetBackground(parallax.x,parallax.y) / (self.blockSheet.width/self.blockWidth));
+						var sx = self.levels[self.level].GetBackground(parallax.x,parallax.y) - (sy * (self.blockSheet.width/self.blockWidth));
 						ctx.drawImage(self.blockSheet, sx * self.blockWidth, sy * self.blockWidth, self.blockWidth, self.blockWidth, screenX,screenY, self.viewScale.x, self.viewScale.y);
 						ctx.fillStyle = 'rgba(0,0,0,0.5)';
 						ctx.fillRect(screenX,screenY, self.viewScale.x, self.viewScale.y);
 					}
-					if (document.getElementById('foregroundVis').checked && self.levels[self.level].GetForeground(x,y) !== 0) {
+					if (self.foregroundVis.checked && self.levels[self.level].GetForeground(x,y) !== 0) {
 						// foreground
 						var sy = Math.floor(self.levels[self.level].GetForeground(x,y) / (self.blockSheet.width/self.blockWidth));
 						var sx = self.levels[self.level].GetForeground(x,y) - (sy * (self.blockSheet.width/self.blockWidth));
 						ctx.drawImage(self.blockSheet, sx * self.blockWidth, sy * self.blockWidth, self.blockWidth, self.blockWidth, screenX,screenY, self.viewScale.x, self.viewScale.y);
 					}
-					// collision
-					if (document.getElementById('collisionVis').checked ) {
+					if (self.overlayVis.checked && self.levels[self.level].GetOverlay(x,y) !== 0) {
+						// overlay
+						var sy = Math.floor(self.levels[self.level].GetOverlay(x,y) / (self.blockSheet.width/self.blockWidth));
+						var sx = self.levels[self.level].GetOverlay(x,y) - (sy * (self.blockSheet.width/self.blockWidth));
+						ctx.drawImage(self.overlaySheet, sx * self.blockWidth, sy * self.blockWidth, self.blockWidth, self.blockWidth, screenX,screenY, self.viewScale.x, self.viewScale.y);
+					}
+					if (self.collisionVis.checked ) {
+						// collision
 						switch (self.levels[self.level].GetCollision(x,y)) {
 							case 0: ctx.fillStyle = 'rgba(0,0,255,0.5)'; break;
 							case 1: ctx.fillStyle = 'rgba(255,0,0,0.5)'; break;
@@ -177,7 +194,17 @@ function Game () {
 			x = Math.round(topLeft.x);
 			y++;
 		}
-		ctx.fillRect(0,0,4,4);
+		// Entities
+		if (self.entityVis.checked) {
+			var player = self.levels[self.level].entities[0];
+			self.levels[self.level].entities.forEach(function (entity,index) {
+				if (index !== 0 && entity !== null) {
+					entity.Render();
+				}
+			});
+			
+			player.Render();
+		}
 		// placement
 		switch (self.mode) {
 			case 'edit':
@@ -186,52 +213,102 @@ function Game () {
 				if (typeof self.primarySelection === 'number') {
 					// place block
 					var penSize = parseInt(document.getElementById('penSize').value);
-					for ( var y = Math.round(coord.y-penSize/2); y < Math.round(coord.y+penSize/2); y++) {
-						for (var x = Math.round(coord.x - penSize/2); x < Math.round(coord.x + penSize/2);x++) {
-							if (input.mouse.left) {
-								self.PlaceBlock(self.layer,new Vector(x,y),self.primarySelection);
+					var area = ellipse(coord.x,coord.y,penSize,penSize);
+					switch(document.getElementById('penShape').value) {
+						case 'square':
+						for ( var y = Math.round(coord.y-penSize/2); y < Math.round(coord.y+penSize/2); y++) {
+							for (var x = Math.round(coord.x - penSize/2); x < Math.round(coord.x + penSize/2);x++) {
+								if (input.mouse.left) {
+									self.PlaceBlock(self.layer,new Vector(x,y),self.primarySelection);
+								}
+								// block highlight
+								var screenCoord = GameToScreen(new Vector(x,y));
+								ctx.fillStyle = 'rgba(255,255,255,0.25)';
+								ctx.fillRect(Math.floor(screenCoord.x-self.viewScale.x/2), Math.floor(screenCoord.y-self.viewScale.y/2), self.viewScale.x, self.viewScale.y);
+							}
+						}
+						break;
+						case 'circle':
+						area.forEach(function (vector) {
+						if (input.mouse.left) {
+								self.PlaceBlock(self.layer,new Vector(vector.x,vector.y),self.primarySelection);
 							}
 							// block highlight
-							var screenCoord = GameToScreen(new Vector(x,y));
+							var screenCoord = GameToScreen(new Vector(vector.x,vector.y));
 							ctx.fillStyle = 'rgba(255,255,255,0.25)';
 							ctx.fillRect(Math.floor(screenCoord.x-self.viewScale.x/2), Math.floor(screenCoord.y-self.viewScale.y/2), self.viewScale.x, self.viewScale.y);
-						}
+						});
+						break;
 					}
 				} else if (typeof self.primarySelection === 'string') {
 					// place entity
-					coord.Add(new Vector(+0.5,+0.5));
+					if (self.entityGhost.uvSize.x % 2 == 0) {
+						coord.x -= 0.5;
+					}
+					if (self.entityGhost.uvSize.y % 2 == 0) {
+						coord.y -= 0.5
+					}
 					if (input.mouse.left) {
-						var entity = new window[self.primarySelection](coord.x,coord.y);
-						switch (self.primarySelection) {
-							case 'Player':
-							entity.respawn = coord;
-							self.levels[self.level].entities[0] = entity;
-							break;
-							default: self.levels[self.level].entities.push(entity);
+						if (self.entityGhost.type !== 'Remove') {
+							var entity = new window[self.primarySelection](coord.x,coord.y);
+							switch (self.primarySelection) {
+								case 'Player':
+								self.levels[self.level].start = coord;
+								self.levels[self.level].entities[0] = entity;
+								break;
+								default: self.levels[self.level].entities.push(entity);
+							}
+							input.mouse.left = false;
+						} else {
+							// Remove any entities under the mouse
+							self.entityGhost.CheckEntityCollision(self.levels[self.level]);
 						}
-						input.mouse.left = false;
 					}
 					// entity ghost
-					coord.Add(new Vector(-1,-1));
-					var screenCoord = GameToScreen(coord);
-					ctx.drawImage(self.entityGhost,0,0,16,16,screenCoord.x,screenCoord.y,2*self.viewScale.x,2*self.viewScale.y);
+					self.entityGhost.position = self.entityGhost.type === 'Remove' ? ScreenToGame(new Vector(input.mouse.xPos,input.mouse.yPos)) : coord;
+					ctx.globalAlpha = 0.5;
+					self.entityGhost.Render();
+					ctx.globalAlpha = 1;
 				}
 			break;
 		}
-		// entities
-		if (document.getElementById('entityVis').checked) {
-			for (var i = self.levels[self.level].entities.length -1; i >= 0; i--) {
-				var entity = self.levels[self.level].entities[i]
-				if (entity !== null && !entity.dead)
-				entity.Render();
-			}
+		
+		// Fade in and out 
+		if (self.fade > 0) {
+			ctx.fillStyle = 'rgba(0,0,0,' + self.fade + ')';
+			ctx.fillRect(0,0,canvas.width,canvas.height);
+		}
+	}
+	this.End = function () {
+		var self = this;
+		self.pause = true;
+		self.fade = 0;
+		self.fadeIn = false;
+		self.fadeOut = false;
+		ctx.font = "100px Arial";
+		ctx.textAlign = "center";
+		ctx.fillStyle = 'white';
+		ctx.fillText('The End',canvas.width/2,canvas.height/2);
+	}
+	this.FadeOut = function () {
+		if (!this.fadeOut) {
+			this.fadeIn = false;
+			this.fadeOut = true;
+			this.fade = 0;
+		}
+	}
+	this.FadeIn = function () {
+		if (!this.fadeIn) {
+			this.fadeOut = false;
+			this.fadeIn = true;
+			this.fade = 1;
 		}
 	}
 	this.UpdateLevel = function () {
 		var self = this;
 		// remove levels from level list
 		var levels = document.getElementById('levelSelect');
-		while (levels.firstChild) {
+		while (levels && levels.firstChild) {
 			levels.removeChild(levels.firstChild);
 		}
 		// restore levels
@@ -251,14 +328,17 @@ function Game () {
 		self.levels.forEach(function (level) {
 			levels.push(level.Export());
 		});
-		return {name:self.name,levels:levels};
+		return {version: self.version,name:self.name,view:self.view,level:self.level,levels:levels};
 	}
 	this.Import = function (gameData) {
 		var self = this;
 		self.mode = 'edit';
 		self.name = gameData.name;
+		self.version = gameData.version;
+		self.view = gameData.view;
+		self.UpdateView();
 		self.levels = [];
-		self.level = 0;
+		self.level = gameData.level;
 		gameData.levels.forEach(function (levelData) {
 			var level = new Level();
 			level.Import(levelData);
@@ -278,11 +358,11 @@ function Game () {
 	this.UpdateView = function () {
 		var self = this;
 		// fit the canvas to the screen size
-		var rect = canvas.getBoundingClientRect();
-		var toolBar = document.getElementById('toolBar');
-		toolBar.style.height = (window.innerHeight-rect.top-16).toString() + 'px';
-		canvas.width  = toolBar.getBoundingClientRect().left-16;
-		canvas.height = window.innerHeight-rect.top-16;
+		var canvasRect = canvas.getBoundingClientRect();
+		var toolBarRect = self.toolBar.getBoundingClientRect();
+		self.toolBar.style.height = (window.innerHeight-toolBarRect.top-16).toString() + 'px';	
+		canvas.width  = self.fullscreen ? window.innerWidth - 24 : toolBar.getBoundingClientRect().left-16;
+		canvas.height = window.innerHeight-canvasRect.top - 16;
 		// image interpolation off for IE, Chrome, Firefox
 		ctx.msImageSmoothingEnabled = false;
 		ctx.imageSmoothingEnabled = false;
@@ -296,26 +376,87 @@ function Game () {
 		var self = this;
 		self.deltaTime = (Date.now() - self.timeOfLastFrame)/1000;
 		self.timeOfLastFrame = Date.now();
-		if (self.levels[self.level] !== undefined) {
+		if (!self.pause && self.levels[self.level] !== undefined) {
 			self.Update();
+			if (!self.pause) {
+			// tick update
+			if (self.tickCounter > 6) {
+				self.tickCounter = 0;
+			}
+			if (self.tickCounter == 0) {
+				self.Tick();
+			}
+			self.tickCounter++;
 			self.Render();
+			}
 		}
 		self.animationRequest = window.requestAnimFrame(function () {
 			self.Animation();
 		});
+	}
+	this.AdvanceLevel = function () {
+		var self = this;
+		if (self.level + 1 < self.levels.length) {
+			self.level++;
+			self.UpdateLevel();
+			self.FadeIn();
+		} else {
+			// the End
+			self.End();
+			
+		}
 	}
 	this.Stop = function() {
 		window.cancelAnimationFrame(this.animationRequest);
 	}
 	this.Initialize = function () {
 		var self = this;
-		self.levels.push(new Level('level 1',64,64));
+		
 		// load assets
 		self.blockSheet.src = 'textures/blockSheet.png';
 		self.blockSheet.width = 128;
 		self.blockSheet.height = 128;
+		self.overlaySheet.src = 'textures/overlaySheet.png';
 		self.undefined.src = 'textures/undefined.png';
 		// HTML
+		self.toolBar = document.getElementById('toolBar');
+		
+		document.getElementById('play').onclick = function () {
+			self.pause = false;
+			self.fade = 0;
+			self.fadeIn = false;
+			self.fadeOut = false;
+			self.fullscreen = true;
+			if (document.getElementById('toolBar')) {
+				document.getElementById('body').removeChild(self.toolBar);
+			}
+			self.UpdateView();
+			// Import
+			document.getElementById('gameData').remove();
+			var gameScript = document.createElement('SCRIPT');
+			gameScript.onload = function () {
+				self.Import(gameData);
+				self.mode = 'play';
+			}
+			gameScript.id = 'gameData';
+			gameScript.type = 'text/javascript';
+			gameScript.src = 'levels/Demo.js';
+			document.getElementsByTagName('head')[0].appendChild(gameScript);
+		}
+		document.getElementById('create').onclick = function () {
+			self.pause = false;
+			self.fade = 0;
+			self.fadeIn = false;
+			self.fadeOut = false;
+			self.fullscreen = false;
+			document.getElementById('body').appendChild(self.toolBar);
+			self.UpdateView();
+			self.levels = [new Level('Level 1',64,64)];
+			self.level = 0;
+			self.camera = new Vector(self.levels[self.level].entities[0].position.x,self.levels[self.level].entities[0].position.y);
+			self.mode = 'edit';
+			self.UpdateLevel();
+		}
 		self.fps = document.getElementById('fps');
 		// Block Selection
 		self.blockSelection = document.getElementById('blockSelection');
@@ -352,13 +493,19 @@ function Game () {
 		});
 		entitySelect.onclick = function () {
 			self.primarySelection = this.value;
-			self.entityGhost.src = 'textures/' + this.value + '.png';
+			self.entityGhost = new window[self.primarySelection]();
 		}
 		// Layers
-		self.layers.push({button:document.getElementById('entities'),visibility:document.getElementById('entityVis')});
-		self.layers.push({button:document.getElementById('foreground'),visibility:document.getElementById('foregroundVis')});
-		self.layers.push({button:document.getElementById('background'),visibility:document.getElementById('backgroundVis')});
-		self.layers.push({button:document.getElementById('collision'),visibility:document.getElementById('collisionVis')});
+		self.entityVis = document.getElementById('entityVis');
+		self.overlayVis = document.getElementById('overlayVis');
+		self.foregroundVis = document.getElementById('foregroundVis');
+		self.backgroundVis = document.getElementById('backgroundVis');
+		self.collisionVis = document.getElementById('collisionVis');
+		self.layers.push({button:document.getElementById('entities')});
+		self.layers.push({button:document.getElementById('overlay')});
+		self.layers.push({button:document.getElementById('foreground')});
+		self.layers.push({button:document.getElementById('background')});
+		self.layers.push({button:document.getElementById('collision')});
 		
 		self.layers.forEach(function (layer ) {
 			layer.button.onclick = function () {
@@ -371,10 +518,15 @@ function Game () {
 					document.getElementById('blockSelection').hidden = true;
 				} else {
 					document.getElementById('blockSelection').hidden = false;
+					if (self.layer === 'overlay') {
+						document.getElementById('blockSelection').style.backgroundImage = "url('textures/overlaySheet.png')";
+					} else {
+						document.getElementById('blockSelection').style.backgroundImage =  "url('textures/blockSheet.png')";
+					}
 				}
 			};
 		});
-		self.layers[1].button.onclick();
+		document.getElementById('foreground').onclick();
 		// Export
 		var button = document.getElementById('export');
 		button.onclick = function () {
@@ -407,13 +559,16 @@ function Game () {
 		// Toggle mode
 		var modeButton = document.getElementById('mode')
 		modeButton.onclick = function () {
+			self.pause = false;
+			self.fade = 0;
+			self.fadeIn = false;
+			self.fadeOut = false;
 			if (self.mode === 'play') {
 				self.mode = 'edit';
 				self.camera = new Vector(self.camera.x,self.camera.y);
-				modeButton.innerHTML = 'Play';
+				
 			} else if (self.mode === 'edit') {
 				self.mode = 'play';
-				self.camera = self.levels[self.level].entities[0].position;
 				modeButton.innerHTML = 'Edit';
 			}
 			self.levels[self.level].Reset();
@@ -428,8 +583,11 @@ function Game () {
 			var height = parseInt(document.getElementById('levelHeight').value);
 			if (typeof width === 'number'  && typeof height === 'number' && width * height <= 16384) {
 				self.levels.push(new Level(document.getElementById('levelName').value,Math.round(width),Math.round(height)));
+				self.mode = 'edit';
 				self.level = self.levels.length-1;
 				self.camera = new Vector(0,0);
+				self.view.height = Math.min(self.view.height,self.levels[self.level].height);
+				self.UpdateView();
 				self.UpdateLevel();
 			}
 		}
@@ -449,13 +607,28 @@ function Game () {
 		}
 		// begin animation loop
 		input.GetMouseWheel(function (event) {
-			if (event.wheelDelta > 0) {
-				self.view.height--;
-			} else {
-				self.view.height++;
+			if (self.mode == 'edit') {
+				if (event.wheelDelta > 0) {
+					if (input.action.shift) {
+						self.view.height = Math.max(self.view.height-1,2);
+					} else {
+						document.getElementById('penSize').stepUp();
+					}
+					
+				} else {
+					if (input.action.shift) {
+						self.view.height = Math.min(self.view.height+1,64);
+					} else {
+						document.getElementById('penSize').stepDown();
+					}
+					
+				}
+				self.UpdateView();
 			}
-			self.UpdateView();
 		});
+		if (self.fullscreen) {
+			document.getElementById('body').removeChild(self.toolBar);
+		}
 		self.UpdateView();
 		self.UpdateLevel();
 		self.timeOfLastFrame = Date.now();
@@ -467,14 +640,20 @@ function Level (name, width, height) {
 	this.width = width;
 	this.height = height;
 	
+	this.overlay = [];
 	this.foreground = [];
 	this.background = [];
 	this.collision = [];
 	
-	this.entities = [new Player(2,2)];
+	this.start = new Vector(2,Math.floor(height/2)-1.5);
+	var player = new Player();
+	player.respawn = this.start;
+	player.Respawn();
+	this.entities = [player];
 	
 	this.Reset = function () {
 		var self = this;
+		self.entities[0].respawn = self.start;
 		self.entities.forEach(function (entity,index) {
 			if (entity !== null) {
 				if (entity.type === 'Bullet') {
@@ -494,7 +673,7 @@ function Level (name, width, height) {
 				entities.push(entity.Export());
 			}
 		});
-		return {name: self.name, width: self.width, height: self.height,foreground: Compress(self.foreground), background: Compress(self.background), collision: Compress(self.collision), entities: entities}
+		return {name: self.name, width: self.width, height: self.height,overlay: Compress(self.overlay), foreground: Compress(self.foreground), background: Compress(self.background), collision: Compress(self.collision), start: self.start.Export(),entities: entities}
 	}
 	this.Import = function (data) {
 		var self = this;
@@ -503,10 +682,13 @@ function Level (name, width, height) {
 		self.width = data.width;
 		self.height = data.height;
 		// map
+		self.overlay = UnCompress(data.overlay);
 		self.foreground = UnCompress(data.foreground);
 		self.background = UnCompress(data.background);
 		self.collision = UnCompress(data.collision);
 		// entities
+		self.start = new Vector();
+		self.start.Import(data.start);
 		self.entities = [];
 		data.entities.forEach(function (entityData) {
 			var entity;
@@ -517,6 +699,13 @@ function Level (name, width, height) {
 	}
 	this.GetIndex = function (x,y) {
 		return y*this.width + x;
+	}
+	this.GetOverlay = function (x,y) {
+		if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
+			return this.overlay[this.GetIndex(x,y)];
+		} else {
+			return 0;
+		}
 	}
 	this.GetForeground = function (x,y) {
 		if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
@@ -549,16 +738,17 @@ function Level (name, width, height) {
 		for (var y = 0; y < self.height; y ++) {
 			for (var x = 0; x < self.width; x ++) {
 				if (y == 32) {
-					self.foreground.push(2)
+					self.foreground.push(35)
 					self.collision.push(1);
 				} else if (y > 32){
-					self.foreground.push(1)
+					self.foreground.push(32)
 					self.collision.push(1);
 				} else {
 					self.foreground.push(0)
 					self.collision.push(0);
 				}
 				self.background.push(0);
+				self.overlay.push(0);
 			}
 		}
 	}
@@ -589,21 +779,44 @@ function Vector (x,y) {
 // Base Entity class
 function Entity (x,y,width,height,sheet) {
 	this.type = 'Entity';
+	// rendering
 	this.sheet = sheet;
 	this.spriteSheet = new Image();
+	this.frame = 0;
+	this.state = 0;
+	this.uv = new Vector(0,0); // texture coordinates
+	this.uvSize = new Vector(2,2); // how many in-game blocks each frame's size is
+	this.frameCount = 8;
+	// properties
 	this.respawn = new Vector(x,y);
+	this.maxHealth = 1;
+	this.health = this.maxHealth;
 	this.dead = false;
 	this.mass = 1;
 	this.width = width;
 	this.height = height;
 	this.direction = 1;
-	this.uv = new Vector(0,0);
-	this.uvSize = new Vector(2,2);
+	// physics
 	this.force = new Vector(0,0);
 	this.position = new Vector(x,y);
 	this.velocity = new Vector(0,0);
 	this.acceleration = new Vector(0,0);
 	this.collision = {left:false,right:false,top:false,bottom:false};
+	this.Damage = function(ammount) {
+		if (this.health > 0) {
+			this.health -= ammount;
+			if (this.health <= 0) {
+				this.Kill();
+			}
+		}
+	}
+	this.Kill = function () {
+		if (this.state != 3) {
+			this.frame = 0;
+			this.state = 3;
+			this.velocity.x = 0;
+		}
+	}
 	this.Death = function () {
 		this.dead = true;
 		this.state = 0;
@@ -613,6 +826,7 @@ function Entity (x,y,width,height,sheet) {
 	}
 	this.Respawn = function () {
 		this.dead = false;
+		this.health = this.maxHealth;
 		this.state = 0;
 		this.frame = 0;
 		this.uv = new Vector(0,0);
@@ -623,19 +837,53 @@ function Entity (x,y,width,height,sheet) {
 	this.OnCollision = function (entity) {
 		
 	}
+	this.OnImpact = function (block) {
+		
+	}
 	this.Render = function () {
 		var self = this;
 		if (!self.dead) {
 			var screen = GameToScreen(self.position);
-			ctx.save();
-			if (self.direction === -1) {
-				var coord = GameToScreen(self.position);
-				ctx.translate(coord.x,coord.y);
-				ctx.scale(-1,1);
-				ctx.translate(-coord.x,-coord.y);
+			if (screen.x < canvas.width + (self.width*game.blockWidth) && screen.x > -self.width*game.blockWidth && screen.y < canvas.height + (self.height*game.blockWidth) && screen.y > -self.height*game.blockWidth ) {
+				ctx.save();
+				if (self.direction === -1) {
+					var coord = GameToScreen(self.position);
+					ctx.translate(coord.x,coord.y);
+					ctx.scale(-1,1);
+					ctx.translate(-coord.x,-coord.y);
+				}
+				ctx.drawImage(self.spriteSheet,self.uv.x,self.uv.y,self.uvSize.x*game.blockWidth,self.uvSize.y*game.blockWidth,screen.x-(game.viewScale.x*self.uvSize.x/2),screen.y-(game.viewScale.y*self.uvSize.y/2),self.uvSize.x*game.viewScale.x,self.uvSize.y*game.viewScale.y);
+				ctx.restore();
+				// health bar
+				if (self.health < self.maxHealth) {
+					var percent = self.health/self.maxHealth;
+					ctx.fillStyle = 'rgb(' + Math.round((1-percent)*255) + ',' + Math.round(percent*255) + ',0)';
+					ctx.fillRect(screen.x-(game.viewScale.x*self.uvSize.x/2),screen.y-(game.viewScale.y*self.uvSize.y/2)- game.viewScale.y * 0.25,(self.uvSize.x*game.viewScale.x) * percent, game.viewScale.y * 0.25);
+				}
 			}
-			ctx.drawImage(self.spriteSheet,self.uv.x,self.uv.y,self.uvSize.x*game.blockWidth,self.uvSize.y*game.blockWidth,screen.x-(game.viewScale.x*self.uvSize.x/2),screen.y-(game.viewScale.y*self.uvSize.y/2),self.uvSize.x*game.viewScale.x,self.uvSize.y*game.viewScale.y);
-			ctx.restore();
+		}
+	}
+	this.Animate = function () {
+		var self = this;
+		if (!self.dead) {
+			
+			// update direction
+			if (self.velocity.x < 0) {
+				self.direction = -1;
+			} else if (self.velocity.x > 0) {
+				self.direction = 1;
+			}
+			if (self.frame < self.frameCount-1) {
+				self.frame++;
+			} else {
+				// dead
+				if (self.state === 3) {
+					self.Death();
+				}
+				self.frame = 0;
+			}
+			self.uv.x = self.frame * self.uvSize.x*game.blockWidth;
+			self.uv.y = self.state * self.uvSize.y*game.blockWidth;
 		}
 	}
 	this.Collision = function (box1,box2) {
@@ -663,16 +911,64 @@ function Entity (x,y,width,height,sheet) {
 		}
 		return collision;
 	}
+	this.CheckCollision = function (level) {
+		/* var self = this;
+		var margin = 0.0625;
+		var collisionMax = {left:0,right:0,top:0,bottom:0};
+		for (var iY = Math.round(self.position.y - self.height/2); iY <= Math.round(self.position.y + self.height/2); iY++ ){
+			for (var iX = Math.round(self.position.x - self.width/2 - 0.5); iX <= Math.round(self.position.x + self.width + 0.5); iX++ ) {
+				if (level.GetCollision(iX,iY)) {
+					var collision = self.Collision({x:self.position.x-self.width/2-margin,y:self.position.y-self.height/2-margin,width:self.width+2*margin,height:self.height+2*margin},{x:iX-0.5,y:iY-0.5,width:1,height:1});
+					if (Math.abs(collision.x) >= Math.abs(collision.y)) {
+						// vertical collision
+						if (collision.y > collisionMax.bottom) {
+							collisionMax.bottom = collision.y;
+						} else if (collision.y < collisionMax.top) {
+							collisionMax.top = collision.y; 
+						}
+					} else if (Math.abs(collision.x) < Math.abs(collision.y)) {
+						if (collision.x > collisionMax.right) {
+							collisionMax.right = collision.x;
+						} else if (collision.x < collisionMax.left) {
+							collisionMax.left = collision.x;
+						}
+					}
+				}
+			}
+		}
+		if (collisionMax.left == -margin) {
+			
+		}
+		var collisionSum = new Vector(collisionMax.left + collisionMax.right,collisionMax.top + collisionMax.bottom);
+		return collisionSum; */
+	}
+	this.CheckEntityCollision = function (level) {
+		var self = this;
+		level.entities.forEach(function (entity,index) {
+			if (entity !== self && entity !== null && !entity.dead && Math.abs(self.position.x-entity.position.x) < 4 && Math.abs(self.position.y-entity.position.y < 4)) {
+				var collision = self.Collision({x:self.position.x-self.width/2,y:self.position.y-self.height/2,width:self.width,height:self.height},
+				{x:entity.position.x-entity.width/2,y:entity.position.y-entity.height/2,width:entity.width,height:entity.height});
+				if (collision.x != 0 || collision.y != 0) {
+					entity.OnCollision(self);
+					self.OnCollision(entity,index,level);
+				}
+			}
+		});
+	}
 	this.Initialize = function () {
-		if (this.sheet !== undefined) {
-			this.spriteSheet.src = this.sheet;
+		var self = this;
+		if (self.sheet !== undefined) {
+			self.spriteSheet.src = self.sheet;
+			self.spriteSheet.onload = function () {
+				self.frameCount = Math.floor(self.spriteSheet.width/(self.uvSize.x*game.blockWidth));
+			}
 		}
 	}
 	this.Initialize();
 }
 Entity.prototype.Update = function (deltaTime,level) {
 	var self = this;
-	if (!self.dead) {
+	if (!self.dead && self.state !== 3) {
 		// impulses
 		self.force.y += self.mass * 32;
 		self.acceleration.x = self.mass > 0 ? self.force.x / self.mass : 0;
@@ -686,75 +982,59 @@ Entity.prototype.Update = function (deltaTime,level) {
 		self.position.Add(self.velocity.Scalar(deltaTime));
 		// check for block collision
 		self.collision = {left:false,right:false,top:false,bottom:false};
+		var collisionMax = {left:0,right:0,top:0,bottom:0};
 		for (var iY = Math.round(self.position.y - self.height/2); iY <= Math.round(self.position.y + self.height/2); iY++ ){
 			for (var iX = Math.round(self.position.x - self.width/2 - 0.5); iX <= Math.round(self.position.x + self.width + 0.5); iX++ ) {
 				if (level.GetCollision(iX,iY)) {
 					var collision = self.Collision({x:self.position.x-self.width/2,y:self.position.y-self.height/2,width:self.width,height:self.height},{x:iX-0.5,y:iY-0.5,width:1,height:1});
-					if (collision.x != 0 && collision.y != 0) {
-						if (Math.abs(collision.x) >= Math.abs(collision.y)) {
-							// vertical collision
-							
-							self.position.y -= collision.y;
-							self.velocity.y = 0;
-							if (collision.y > 0) {
-								self.collision.bottom = true;
-							} else if (collision.y < 0) {
-								self.collision.top = true;
-							}
-							collision = self.Collision({x:self.position.x-self.width/2,y:self.position.y-self.height/2,width:self.width,height:self.height},{x:iX-0.5,y:iY-0.5,width:1,height:1});
-							if (Math.abs(collision.x) > 0) {
-								
-								self.position.x -= collision.x;
-								self.velocity.x = 0;
-								if (collision.x > 0) {
-									self.collision.right = true;
-								} else if (collision.x < 0) {
-									self.collision.left = true;
-								}
-							}
-						} else if (Math.abs(collision.x) < Math.abs(collision.y)) {
-							// horizontal collision
-							
-							self.position.x -= collision.x;
-							self.velocity.x = 0;
-							if (collision.x > 0) {
-								self.collision.right = true;
-							} else if (collision.x < 0) {
-								self.collision.left = true;
-							}
-							
-							collision = self.Collision({x:self.position.x-self.width/2,y:self.position.y-self.height/2,width:self.width,height:self.height},{x:iX-0.5,y:iY-0.5,width:1,height:1});
-							if (Math.abs(collision.y) > 0) {
-								
-								self.position.y -= collision.y;
-								self.velocity.y = 0;
-								if (collision.y > 0) {
-									self.collision.bottom = true;
-								} else if (collision.y < 0) {
-									self.collision.top = true;
-								}
-							}
+					if (collision.x !== 0 || collision.y !== 0) {
+						self.OnImpact();
+					}
+					if (Math.abs(collision.x) >= Math.abs(collision.y)) {
+						// vertical collision
+						if (collision.y > collisionMax.bottom) {
+							collisionMax.bottom = collision.y;
+						} else if (collision.y < collisionMax.top) {
+							collisionMax.top = collision.y; 
+						}
+					} else if (Math.abs(collision.x) < Math.abs(collision.y)) {
+						if (collision.x > collisionMax.right) {
+							collisionMax.right = collision.x;
+						} else if (collision.x < collisionMax.left) {
+							collisionMax.left = collision.x;
 						}
 					}
 				}
 			}
 		}
-		// check for entity collision
-		level.entities.forEach(function (entity) {
-			if (entity !== self && entity !== null && !entity.dead) {
-				var collision = self.Collision({x:self.position.x-self.width/2,y:self.position.y-self.height/2,width:self.width,height:self.height},
-				{x:entity.position.x-entity.width/2,y:entity.position.y-entity.height/2,width:entity.width,height:entity.height});
-				if (collision.x != 0 || collision.y != 0) {
-					self.OnCollision(entity);
-					entity.OnCollision(self);
-				}
+		var collisionSum = new Vector(collisionMax.left + collisionMax.right,collisionMax.top + collisionMax.bottom);
+		// Handle the collisions
+		if (collisionSum.y !== 0 && Math.abs(collisionSum.y) >= Math.abs(collisionSum.x)) {
+			// vertical collision
+			self.position.y -= collisionSum.y;
+			self.velocity.y = 0;
+			if (collisionSum.y > 0) {
+				self.collision.bottom = true;
+			} else if (collisionSum.y < 0) {
+				self.collision.top = true;
 			}
-		});
+		} else if (collisionSum.x !== 0 && Math.abs(collisionSum.y) < Math.abs(collisionSum.x)) {
+			// horizontal collision
+			self.position.x -= collisionSum.x;
+			self.velocity.x = 0;
+			if (collisionSum.x > 0) {
+				self.collision.right = true;
+			} else if (collisionSum.x < 0) {
+				self.collision.left = true;
+			}
+		}
+		// check for entity collision
+		self.CheckEntityCollision(level);
 	}
 }
 Entity.prototype.Export = function () {
 	var self = this;
-	return {type: self.type,sheet: self.sheet, respawn: self.respawn.Export(), dead: self.dead,mass: self.mass, width: self.width, height: self.height, direction:self.direction, uv: self.uv.Export(), uvSize: self.uvSize.Export(),force: self.force.Export(),position:self.position.Export(),
+	return {type: self.type,sheet: self.sheet,respawn: self.respawn.Export(), maxHealth: self.maxHealth,dead: self.dead,mass: self.mass, width: self.width, height: self.height, direction:self.direction, uvSize: self.uvSize.Export(),force: self.force.Export(),position:self.position.Export(),
 	velocity:self.velocity.Export(), acceleration:self.acceleration.Export(),collision:self.collision};
 }
 Entity.prototype.Import = function (entityData) {
@@ -762,13 +1042,13 @@ Entity.prototype.Import = function (entityData) {
 	self.sheet = entityData.sheet;
 	self.respawn = new Vector();
 	self.respawn.Import(entityData.respawn);
+	self.maxHealth = entityData.maxHealth;
+	self.health = entityData.maxHealth;
 	self.dead = entityData.dead;
 	self.mass = entityData.mass;
 	self.width = entityData.width;
 	self.height = entityData.height;
 	self.direction = entityData.direction;
-	self.uv = new Vector();
-	self.uv.Import(entityData.uv);
 	self.uvSize = new Vector();
 	self.uvSize.Import(entityData.uvSize);
 	self.force = new Vector();
@@ -783,12 +1063,11 @@ Entity.prototype.Import = function (entityData) {
 	self.Initialize();
 }
 // All things that are alive
-function NPC (x,y,width,height,sheet,speed) {
+function NPC (x,y,width,height,sheet,speed,jumpHeight) {
 	Entity.call(this, x, y,width,height, sheet);
 	this.type = 'NPC';
-	this.state = 0;
-	this.frame = 0;
 	this.speed = speed;
+	this.jumpHeight = jumpHeight;
 	this.coolDown = 2;
 	this.lastFire = this.coolDown;
 	this.MoveRight = function () {
@@ -807,91 +1086,66 @@ function NPC (x,y,width,height,sheet,speed) {
 		this.velocity.x = 0;
 	}
 	this.Jump = function () {
-		if (this.collision.bottom) {
-			this.velocity.y = -17;
+		if (this.collision.bottom && this.jumpHeight) {
+			this.velocity.y = -Math.sqrt(2 * this.acceleration.y * this.jumpHeight);
 		}
 	}
-	this.Kill = function () {
-		if (this.state != 3) {
-			this.frame = 0;
-			this.state = 3;
-			this.Stop();
-		}
-	}
-	this.Shoot = function (level) {
+	this.Shoot = function (type,level,target) {
 		if (this.lastFire >= this.coolDown) {
-			var bullet = new Bullet(this.position.x+this.direction*(this.width/2+1),this.position.y);
-			bullet.velocity.x = this.direction*20;
+			var velocity = 20;
+			var bullet = new window[type](this.position.x,this.position.y-0.5);
+			bullet.velocity.x = this.direction*velocity;
+			if (target instanceof Vector) {
+				var angle = Math.atan2(this.position.y-target.y,this.position.x-target.x);
+				angle += Math.PI;
+				bullet.velocity.x = Math.cos(angle) * velocity;
+				bullet.velocity.y = Math.sin(angle) * velocity;
+			}
 			level.entities.push(bullet);
 			this.lastFire = 0;
-		}
-	}
-	this.Animate = function () {
-		var self = this;
-		if (!self.dead) {
-			var lastState = self.state;
-			// update the sprite state (idle, run, jump)
-			if (self.state != 3) {
-				if (Math.abs(self.velocity.x) != 0) {
-					self.state = 1;
-				}  else {
-					self.state = 0;
-				}
-				if (Math.abs(self.velocity.y) != 0) {
-					self.state = 2;
-				}
-			}
-			if (lastState !== self.state) {
-				self.frame = 0;
-			}
-			
-			if (self.frame < 7) {
-				self.frame++;
-			} else {
-				// dead
-				if (self.state === 3) {
-					self.Death();
-				}
-				self.frame = 0;
-			}
-			self.uv.x = self.frame * 16;
-			self.uv.y = self.state * 16;
 		}
 	}
 }
 NPC.prototype.Update = function (deltaTime,level) {
 	var self = this;
 	Entity.prototype.Update.call(this,deltaTime,level);
+	// update the sprite state (idle, run, jump, death)
+	var lastState = self.state;
+	if (self.state != 3) {
+		if (Math.abs(self.velocity.x) != 0) {
+			self.state = 1; // run
+		}  else {
+			self.state = 0; // idle
+		}
+		if (Math.abs(self.velocity.y) != 0) {
+			self.state = 2; // jumping / falling
+		}
+	}
+	if (lastState !== self.state) {
+		self.frame = 0; // reset frame for new state
+	}
 	self.lastFire+=deltaTime;
 }
 NPC.prototype.Export = function () {
 	var self = this;
 	var obj = Entity.prototype.Export.call(this);
-	obj.state = self.state;
-	obj.frame = self.frame;
 	obj.speed = self.speed;
+	obj.jumpHeight = self.jumpHeight;
 	return obj;
 }
 NPC.prototype.Import = function (NPCdata) {
 	var self = this;
 	Entity.prototype.Import.call(this,NPCdata);
-	self.state = NPCdata.state;
-	self.frame = NPCdata.frame;
 	self.speed = NPCdata.speed;
+	self.jumpHeight = NPCdata.jumpHeight;
 }
 // You
 function Player (x,y) {
 	// inherits from NPC
-	NPC.call(this, x, y,1,2,'textures/Player.png',10);
+	NPC.call(this, x, y,1,2,'textures/Player.png',10,4.5);
 	this.type = 'Player';
-	this.coolDown = 1;
+	this.coolDown = 0.25;
 	this.OnCollision = function (entity) {
-		var self = this;
-		if (entity instanceof Hostile || entity.type == 'Bullet') {
-			self.Kill();
-		} else if (entity.type == 'Checkpoint') {
-			self.respawn = entity.position;
-		}
 	}
 }
 Player.prototype.Death = function () {
@@ -916,8 +1170,7 @@ Player.prototype.Update = function (deltaTime,level) {
 			}
 			// fire
 			if (input.mouse.left) {
-				self.Shoot(level);
-				input.mouse.left = false;
+				self.Shoot('PlayerBullet',level);
 			}
 		} 
 		NPC.prototype.Update.call(this,deltaTime,level);
@@ -932,16 +1185,25 @@ Player.prototype.Import = function (playerData) {
 	NPC.prototype.Import.call(this,playerData);
 }
 // Bad guys
-function Hostile (x,y,width,height,sheet,speed,range,jump) {
+function Hostile (x,y,width,height,sheet,speed,jumpHeight,minRange,maxRange,jump) {
 	// inherits from NPC
-	NPC.call(this, x, y,width,height,sheet,speed);
+	NPC.call(this, x, y,width,height,sheet,speed,jumpHeight);
 	this.type = 'Hostile';
-	this.range = range;
+	this.minRange = minRange;
+	this.maxRange = maxRange;
 	this.jump = jump;
 	this.OnCollision = function (entity) {
-		if (entity.type == 'Bullet') {
-			this.Kill();
+		if (this.state !== 3&& entity.type === 'Player') {
+			entity.Kill();
 		}
+	}
+	this.CheckGround = function (level) {
+		var self = this;
+		var y = Math.ceil(self.position.y)+1;
+		while (!level.GetCollision(Math.round(self.position.x+self.direction),y)) {
+			y++;
+		}
+		return y - (Math.ceil(self.position.y)+1);
 	}
 	this.AI = function (level) {
 		var self = this;
@@ -949,20 +1211,27 @@ function Hostile (x,y,width,height,sheet,speed,range,jump) {
 			var player = level.entities[0];
 			if (player.state !== 3) {
 				var distance = player.position.x - self.position.x 
-				if (Math.abs(distance) > 1 && Math.abs(distance) < self.range) {
-					if (Math.abs(self.velocity.x) < 0.5) {
-						self.CheckJump(level);
-					}
-					if ( distance > 0) {
-						self.MoveRight();
-						self.Shoot(level);
-					} else if (distance < 0) {
-						self.MoveLeft();
-						self.Shoot(level);
+				if (Math.abs(distance) < self.maxRange) {
+					if (Math.abs(distance) > self.minRange) {
+						// jump
+						if (level.GetCollision(Math.round(self.position.x + self.direction),Math.round(self.position.y + 0.5)) != 0) {
+							self.CheckJump(level);
+						}
+						// move
+						if ( distance > 0) {
+							self.MoveRight();
+						} else if (distance < 0) {
+							self.MoveLeft();
+						}
+						// check for cliffs
+						if (self.CheckGround(level) > self.jumpHeight){
+							self.Stop();	
+						}
 					} else {
 						self.Stop();
 					}
-					
+					// shoot
+					self.Shoot('Bullet',level,self.type == 'Gage' ? player.position : null);
 				} else {
 					self.Stop();
 				}
@@ -976,7 +1245,7 @@ function Hostile (x,y,width,height,sheet,speed,range,jump) {
 	this.CheckJump = function (level) {
 		var self = this;
 		if (self.jump) {
-			for (var y = Math.round(self.position.y-0.5); y>Math.round(self.position.y-0.5)-4; y--) {
+			for (var y = Math.floor(self.position.y-0.5); y>Math.floor(self.position.y-0.5-Math.floor(self.jumpHeight)); y--) {
 				if (!level.GetCollision(Math.round(self.position.x+self.direction),y)&&!level.GetCollision(Math.round(self.position.x+self.direction),y-1)) {
 					self.Jump();
 				}
@@ -995,36 +1264,131 @@ Hostile.prototype.Update = function (deltaTime,level) {
 Hostile.prototype.Export = function () {
 	var self = this;
 	var obj = NPC.prototype.Export.call(this);
-	obj.range = self.range;
+	obj.minRange = self.minRange;
+	obj.maxRange = self.maxRange;
 	obj.jump = self.jump;
 	return obj;
 }
 Hostile.prototype.Import = function (hostileData) {
 	var self = this;
 	NPC.prototype.Import.call(this,hostileData);
-	self.range = hostileData.range;
+	self.minRange = hostileData.minRange;
+	self.maxRange = hostileData.maxRange;
 	self.jump = hostileData.jump;
 }
 function Saw (x,y) {
-	var entity =  new Hostile(x,y,2,1.5,'textures/Saw.png',5,16,false);
-	entity.type = 'Saw';
-	return entity;
+	var saw = new Hostile(x,y,2,1.5,'textures/Saw.png',5,0,1,16);
+	saw.type = 'Saw';
+	saw.maxHealth = 2;
+	saw.Shoot = function () {}
+	/* this.Update = function (deltaTime,level) {
+		Hostile.prototype.Update.call(this,deltaTime,level);
+	}
+	this.Export = function () {
+		return Hostile.prototype.Export.call(this);
+	}
+	this.Import = function (sawData) {
+		Hostile.prototype.Import.call(this,sawData);
+	} */
+	saw.Respawn();
+	return saw;
+}
+function Seeker (x,y) {
+	var seeker = new Hostile(x,y,1,2,'textures/Seeker.png',5,3.5,5,16);
+	seeker.type = 'Seeker';
+	seeker.maxHealth = 3;
+	seeker.Respawn();
+	return seeker;
+}
+function Turret (x,y) {
+	var turret = new Hostile(x,y,2,2,'textures/Turret.png',0,0,0,24);
+	turret.type = "Turret";
+	turret.maxHealth = 1;
+	turret.Respawn();
+	return turret;
+}
+function Gage (x,y) {
+	var gage = new Hostile(x,y,4,5,'textures/Gage.png',3,5.5,0,32);
+	gage.type = 'Gage';
+	gage.maxHealth = 20
+	gage.uvSize = new Vector(4,5);
+	gage.Respawn();
+	return gage;
 }
 function Checkpoint (x,y) {
 	var checkpoint = new Entity(x,y,2,2,'textures/Checkpoint.png');
 	checkpoint.type = 'Checkpoint';
 	checkpoint.mass = 0;
+	checkpoint.OnCollision = function (entity) {
+		if (entity.type === 'Player' && checkpoint.state == 0) {
+			entity.respawn = checkpoint.position;
+			checkpoint.state = 1;
+		}
+	}
+	checkpoint.Kill = function () {}
 	return checkpoint;
 }
+function Exit (x,y) {
+	var exit = new Entity(x,y,2,2,'textures/Exit.png');
+	exit.type = 'Exit';
+	exit.mass = 0;
+	exit.OnCollision = function (entity) {
+		if (entity.type === 'Player') {
+			entity.Stop();
+			game.FadeOut();
+		}
+	}
+	return exit;
+}
 function Bullet (x,y) {
-	var bullet = new Entity(x,y,1,0.25,'textures/Bullet.png');
+	var bullet = new Entity(x,y,0.25,0.25,'textures/Bullet.png');
 	bullet.type = 'Bullet';
-	bullet.uvSize = new Vector(1,0.25);
+	bullet.uvSize = new Vector(1,1);
 	bullet.mass = 0;
 	bullet.OnCollision = function (entity) {
-		bullet.Death();
+		if (bullet.state !== 3 && entity.type === 'Player') {
+			entity.Damage(1);
+			bullet.Kill();
+		}
+	}
+	bullet.OnImpact = function (block) {
+		bullet.Kill();
 	}
 	return bullet;
+}
+function PlayerBullet (x,y) {
+	var bullet = Bullet(x,y);
+	bullet.sheet = 'textures/BlueBullet.png';
+	bullet.Initialize();
+	bullet.OnCollision = function (entity) {
+		if (bullet.state !== 3 && entity instanceof Hostile) {
+			entity.Damage(1);
+			bullet.Kill();
+		}
+	}
+	return bullet;
+}
+function Acid (x,y) {
+	var acid = new Entity(x,y,1,1,'textures/Acid.png');
+	acid.type = 'Acid';
+	acid.uvSize = new Vector(1,1);
+	acid.mass = 0;
+	acid.OnCollision = function (entity) {
+		entity.Kill();
+	}
+	return acid;
+}
+function Remove (x,y) {
+	var remove = new Entity(x,y,1,1,'textures/Remove.png');
+	remove.type = 'Remove';
+	remove.uvSize = new Vector(1,1);
+	remove.mass = 0;
+	remove.OnCollision = function (entity,index,level) {
+		if (entity.type !== 'Player') {
+			level.entities[index] = null;
+		}
+	}
+	return remove;
 }
 // handle input events
 function Input() {
@@ -1045,7 +1409,8 @@ function Input() {
 		down: [83,40],
 		space: [32],
 		shift: [16],
-		escape: [27]
+		escape: [27],
+		ctrl: [17]
 	}
 	// interface
 	this.action = {
@@ -1055,7 +1420,8 @@ function Input() {
 		down: false,
 		space: false,
 		shift: false,
-		escape: false
+		escape: false,
+		ctrl: false
 	}
 	this.UpdateAction = function () {
 		var self = this;
@@ -1126,12 +1492,23 @@ function Input() {
 function Compress(array) {
 	var compressed = [];
 	var lastData = undefined;
-	array.forEach(function (data) {
+	array.forEach(function (data,index) {
 		if (data === lastData) {
 			// increment counter
 			compressed[compressed.length-1][0]++;
 		} else {
-			// setup new block of data
+			// opt for normal array format where optimal
+			if (index !== 0) {
+				var size = compressed[compressed.length-1][0];
+				if (size < 4) {
+					var start = compressed.length-1;
+					for (var i = start ; i < start + size; i++) {
+							compressed[i] = lastData;
+
+					}
+				}
+			}
+			// set-up new block of data
 			compressed.push([1,data]);
 		}
 		lastData = data;
@@ -1141,8 +1518,12 @@ function Compress(array) {
 function UnCompress(array) {
 	var original = [];
 	array.forEach(function (sub) {
-		for(var i = 0; i < sub [0]; i++) {
-			original.push(sub[1]);
+		if (Array.isArray(sub)) {
+			for(var i = 0; i < sub [0]; i++) {
+				original.push(sub[1]);
+			}
+		} else {
+			original.push(sub);
 		}
 	});
 	return original;
@@ -1172,4 +1553,22 @@ function loadJSON(callback) {
 		  }
 	};
 	xobj.send(null);  
+}
+function clamp(val, min,max){
+    return Math.max(min, Math.min(max, val))
+}
+function ellipse(x,y,width,height) {
+	var a = width/2;
+	var b = height/2;
+	var indices = []
+	var aSqrd = a*a;
+	var bSqrd = b*b;
+	for (var iY = Math.round(y - b); iY < y + b ; iY++) {
+		for (var iX = Math.round(x - a); iX < x + a ; iX++) {
+			if (((((iX - x) * (iX - x)) / aSqrd) + (((iY - y) * (iY - y)) / bSqrd)) <= 1) {
+				indices.push({x:iX,y:iY});
+			}
+		}
+	}
+	return indices;
 }

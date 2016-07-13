@@ -6,6 +6,11 @@
 		<link rel="stylesheet" type="text/css" href="style.css"></link>
     </head>
 	<body id = "body" onload = "initialize()">
+		<div id = "menu">
+			<div id = "play"class = "button">Play Demo.js</div>
+			<div id = "create" class = "button">Create</div>
+			<p style = "display: inline-block;">| Move: WASD/Arrows/Space |  Shoot: left mouse | Editor zoom: Shift + scroll |</p>
+		</div>
 		<ul id = "toolBar">
 			<li id = "blockGroup" class = "group">
 				<table id = "blockSelection">
@@ -13,17 +18,22 @@
 			</li>
 			<li class = "group">
 				<p class = "title"> Edit </p>
-				Pen size: <input id = "penSize" type = "range" min = "1" step = "1" max = "30">
+				Pen shape: <select id = "penShape" class = "button">
+					<option value = "square">Square</option>
+					<option selected value = "circle">Circle</option>
+				</select> <br>
+				Pen size: <input id = "penSize" value = "1" type = "range" min = "1" step = "1" max = "30">
 				<p class = "heading">Layers</p>
-				<div id = "entities" class = "button layer">Entities <select id = "entitySelect"></select></div><input id = "entityVis" type = "checkbox" checked = "checked"><br>
-				<div id = "foreground" class = "button layer">Foreground</div><input id = "foregroundVis" type = "checkbox" checked = "checked"><br>
-				<div id = "background" class = "button layer">Background</div><input id = "backgroundVis" type = "checkbox" checked = "checked"><br>
+				<div id = "entities" class = "button layer">Entities <select id = "entitySelect" class = "button"></select></div><input id = "entityVis" type = "checkbox" checked = "checked"><br>
+				<div id = "overlay" class = "button layer">Overlay</div><input id = "overlayVis" type = "checkbox"><br>
+				<div id = "foreground" class = "button layer">Foreground</div><input id = "foregroundVis" type = "checkbox" checked><br>
+				<div id = "background" class = "button layer">Background</div><input id = "backgroundVis" type = "checkbox"><br>
 				<div id = "collision" class = "button layer">Collision</div><input id = "collisionVis" type = "checkbox"><br>
 				<div id = "mode" class = "button">Play</div>
 			</li>
 			<li class = "group">
 				<p class = "title"> Level </p>
-				Load level: <select id = "levelSelect"></select> <br>
+				Load level: <select id = "levelSelect" class = "button"></select> <br>
 				Name: <input id = "levelName" class = "button" type = "text"></input> <br>
 				Width: <input id ="levelWidth"  class = "button" type = "text"></input> <br>
 				Height: <input id = "levelHeight"  class = "button" type = "text"></input> <br>
